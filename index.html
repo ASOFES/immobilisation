@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Note d'immobilisation — Parc automobile MINEXX</title>
+  <style>
+    :root {
+      --ink: #1c2430;
+      --muted: #5c6778;
+      --line: #d5dbe3;
+      --paper: #f4f6f8;
+      --card: #fff;
+      --accent: #0f3d4c;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Calibri, Arial, sans-serif;
+      color: var(--ink);
+      background: var(--paper);
+    }
+    header.app {
+      background: var(--accent);
+      color: #fff;
+      padding: 18px 28px;
+    }
+    header.app h1 { margin: 0; font-size: 20px; font-weight: 650; }
+    header.app p { margin: 4px 0 0; font-size: 13px; opacity: .85; }
+    main {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 20px;
+      padding: 20px;
+      align-items: start;
+    }
+    .panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .panel h2 { margin: 0 0 12px; font-size: 15px; }
+    label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 4px; }
+    input, textarea, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font: inherit;
+      font-size: 14px;
+      background: #fff;
+    }
+    textarea { min-height: 88px; resize: vertical; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    button {
+      border: 0;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font: inherit;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    button.primary { background: var(--accent); color: #fff; width: 100%; margin-top: 12px; }
+    button.ghost { background: #e8eef2; color: var(--accent); }
+    .status { font-size: 13px; margin-top: 8px; min-height: 18px; }
+    .status.ok { color: #0d6b3a; }
+    .status.err { color: #9b1c1c; }
+    .sheet-wrap { overflow: auto; }
+    .sheet {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 0 auto;
+      background: #fff;
+      color: #111;
+      padding: 16mm 16mm 18mm;
+      box-shadow: 0 8px 28px rgba(20, 30, 40, .12);
+    }
+    .brand { text-align: center; letter-spacing: .18em; font-size: 13px; }
+    .brand strong { display: block; font-size: 22px; letter-spacing: .28em; margin-top: 2px; }
+    .meta { margin-top: 14px; font-size: 13px; }
+    .meta .right { float: right; }
+    h2.doc { text-align: center; font-size: 22px; margin: 22px 0 8px; font-weight: 650; }
+    .objet { font-size: 14px; margin: 8px 0 14px; }
+    table.fiche { width: 100%; border-collapse: collapse; font-size: 13.5px; margin: 8px 0 14px; }
+    table.fiche th, table.fiche td { border: 1px solid #222; padding: 6px 8px; text-align: left; vertical-align: top; }
+    table.fiche th { width: 34%; font-weight: 650; background: #f7f7f7; }
+    .corps { font-size: 13.5px; line-height: 1.45; white-space: pre-wrap; }
+    .sign { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 28px; font-size: 13px; }
+    .sign h3 { margin: 0 0 8px; font-size: 12px; letter-spacing: .12em; }
+    .sign .line { margin-top: 36px; border-top: 1px solid #222; padding-top: 4px; }
+    @media (max-width: 1100px) {
+      main { grid-template-columns: 1fr; }
+      .sheet { width: 100%; min-height: 0; }
+    }
+    @media print {
+      header.app, .panel, .no-print { display: none !important; }
+      body { background: #fff; }
+      main { display: block; padding: 0; }
+      .sheet { box-shadow: none; width: auto; min-height: auto; padding: 0; }
+    }
+  </style>
+</head>
+<body>
+  <header class="app">
+    <h1>Immobilisation de véhicule</h1>
+    <p>Note de service du parc automobile MINEXX — les véhicules viennent du charroi.</p>
+  </header>
+  <main>
+    <section>
+      <div class="panel">
+        <h2>Charroi MINEXX</h2>
+        <label for="apiBase">Adresse Railway</label>
+        <input id="apiBase" value="https://minexx.up.railway.app" autocomplete="url" />
+        <label for="apiUser">Nom d'utilisateur</label>
+        <input id="apiUser" autocomplete="username" />
+        <label for="apiPass">Mot de passe</label>
+        <input id="apiPass" type="password" autocomplete="current-password" />
+        <button class="primary" id="loadBtn" type="button">Charger les véhicules</button>
+        <div class="status" id="apiStatus"></div>
+        <label for="vehiculePick">Véhicule</label>
+        <select id="vehiculePick">
+          <option value="">Saisie manuelle</option>
+        </select>
+      </div>
+      <div class="panel" style="margin-top:16px">
+        <h2>Note de service</h2>
+        <label for="numero">Numéro</label>
+        <input id="numero" value="NS/PARC/2026/001" />
+        <div class="row">
+          <div>
+            <label for="lieuFait">Fait à</label>
+            <input id="lieuFait" value="CAMP COMIDE" />
+          </div>
+          <div>
+            <label for="dateNote">Date</label>
+            <input id="dateNote" type="date" />
+          </div>
+        </div>
+        <label for="objet">Objet</label>
+        <textarea id="objet">Mise en indisponibilité du véhicule — entretien</textarea>
+        <label for="destinataires">Destinataires</label>
+        <input id="destinataires" value="Chef du service concerné · Responsable du parc automobile" />
+        <label for="vehicule">Véhicule</label>
+        <input id="vehicule" placeholder="Marque et modèle" />
+        <div class="row">
+          <div>
+            <label for="immat">Immatriculation</label>
+            <input id="immat" />
+          </div>
+          <div>
+            <label for="affectation">Affectation</label>
+            <input id="affectation" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="km">Kilométrage actuel</label>
+            <input id="km" inputmode="numeric" />
+          </div>
+          <div>
+            <label for="kmApres">Kilométrage après entretien</label>
+            <input id="kmApres" inputmode="numeric" />
+          </div>
+        </div>
+        <label for="prochain">Prochain entretien (après + 5 000 km)</label>
+        <input id="prochain" readonly />
+        <button class="ghost" id="syncBtn" type="button" style="width:100%;margin-top:8px">Actualiser le planning Minexx</button>
+        <div class="status" id="planStatus"></div>
+        <div class="row">
+          <div>
+            <label for="parc">N° de parc</label>
+            <input id="parc" value="PARC01" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="debut">Début</label>
+            <input id="debut" type="datetime-local" />
+          </div>
+          <div>
+            <label for="fin">Fin</label>
+            <input id="fin" type="datetime-local" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="conducteur">Conducteur</label>
+            <input id="conducteur" value="Mixte" />
+          </div>
+          <div>
+            <label for="prestataire">Prestataire</label>
+            <input id="prestataire" />
+          </div>
+        </div>
+        <label for="lieu">Lieu</label>
+        <input id="lieu" value="GARAGE DE COMIDE" />
+        <label for="corps">Consigne et opérations</label>
+        <textarea id="corps">Aucune sortie pendant cette période. Clés, carte grise et carnet d'entretien remis au parc automobile. Remise en service après l'entretien. Remplacement : PAS PREVU.
+
+Opérations :
+- Vidange du moteur et remplacement du filtre à huile ;
+- Contrôle et appoint des niveaux ;
+- Contrôle des freins, de la direction et des pneumatiques ;
+- Contrôle de l'éclairage, de la signalisation et des équipements de sécurité ;
+- Contrôle visuel du châssis et des trains roulants ;
+- Mise à jour du carnet d'entretien.</textarea>
+        <div class="row">
+          <div>
+            <label for="etabliFonction">Établi par — fonction</label>
+            <input id="etabliFonction" value="Responsable du parc automobile" />
+          </div>
+          <div>
+            <label for="etabliNom">Nom</label>
+            <input id="etabliNom" value="Ingénieur Toto" />
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label for="visaFonction">Visa — fonction</label>
+            <input id="visaFonction" value="Chef du service" />
+          </div>
+          <div>
+            <label for="visaNom">Nom</label>
+            <input id="visaNom" />
+          </div>
+        </div>
+        <button class="primary" id="printBtn" type="button">Produire le PDF</button>
+      </div>
+    </section>
+    <section class="sheet-wrap">
+      <article class="sheet" id="sheet">
+        <div class="brand">PARC AUTOMOBILE<strong>MINEXX</strong></div>
+        <div class="meta">
+          <span class="right" id="outLieuDate"></span>
+          <div>N° <span id="outNumero"></span></div>
+        </div>
+        <h2 class="doc">Note de service</h2>
+        <p class="objet"><strong>Objet :</strong> <span id="outObjet"></span></p>
+        <p class="objet"><strong>Destinataires :</strong> <span id="outDest"></span></p>
+        <table class="fiche">
+          <tr><th>Véhicule</th><td id="outVehicule"></td></tr>
+          <tr><th>Immatriculation</th><td id="outImmat"></td></tr>
+          <tr><th>Affectation</th><td id="outAffectation"></td></tr>
+          <tr><th>Kilométrage actuel</th><td id="outKm"></td></tr>
+          <tr><th>Kilométrage après entretien</th><td id="outKmApres"></td></tr>
+          <tr><th>Prochain entretien</th><td id="outProchain"></td></tr>
+          <tr><th>Période</th><td id="outPeriode"></td></tr>
+          <tr><th>N° de parc</th><td id="outParc"></td></tr>
+          <tr><th>Conducteur</th><td id="outConducteur"></td></tr>
+          <tr><th>Lieu</th><td id="outLieu"></td></tr>
+          <tr><th>Prestataire</th><td id="outPrestataire"></td></tr>
+        </table>
+        <div class="corps" id="outCorps"></div>
+        <p id="outFait"></p>
+        <div class="sign">
+          <div>
+            <h3>ÉTABLI PAR</h3>
+            <div id="outEtabliFonction"></div>
+            <div class="line" id="outEtabliNom"></div>
+          </div>
+          <div>
+            <h3>VISA</h3>
+            <div id="outVisaFonction"></div>
+            <div class="line" id="outVisaNom"></div>
+          </div>
+        </div>
+      </article>
+    </section>
+  </main>
+  <script>
+    const INTERVALLE = 5000;
+    const fields = ["numero","lieuFait","dateNote","objet","destinataires","vehicule","immat","affectation","km","kmApres","parc","debut","fin","conducteur","prestataire","lieu","corps","etabliFonction","etabliNom","visaFonction","visaNom"];
+    const $ = (id) => document.getElementById(id);
+    const mois = ["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+
+    function dateLongue(iso) {
+      if (!iso) return "";
+      const d = new Date(iso + "T12:00:00");
+      return d.getDate() + " " + mois[d.getMonth()] + " " + d.getFullYear();
+    }
+    function dateHeure(iso) {
+      if (!iso) return "";
+      const d = new Date(iso);
+      const hh = String(d.getHours()).padStart(2, "0");
+      const mm = String(d.getMinutes()).padStart(2, "0");
+      return d.getDate() + " " + mois[d.getMonth()] + " " + d.getFullYear() + " à " + hh + " h " + mm;
+    }
+
+    function render() {
+      $("outNumero").textContent = $("numero").value;
+      $("outLieuDate").textContent = "Fait à " + $("lieuFait").value + ", le " + dateLongue($("dateNote").value);
+      $("outObjet").textContent = $("objet").value;
+      $("outDest").textContent = $("destinataires").value;
+      $("outVehicule").textContent = $("vehicule").value;
+      $("outImmat").textContent = $("immat").value;
+      $("outAffectation").textContent = $("affectation").value;
+      const apres = parseInt($("kmApres").value, 10);
+      $("prochain").value = Number.isFinite(apres) ? String(apres + INTERVALLE) : "";
+      $("outKm").textContent = $("km").value ? $("km").value + " Km" : "";
+      $("outKmApres").textContent = $("kmApres").value ? $("kmApres").value + " Km" : "";
+      $("outProchain").textContent = $("prochain").value ? $("prochain").value + " Km" : "";
+      const debut = dateHeure($("debut").value);
+      const fin = dateHeure($("fin").value);
+      $("outPeriode").textContent = debut && fin ? "du " + debut + " au " + fin : "";
+      $("outParc").textContent = $("parc").value;
+      $("outConducteur").textContent = $("conducteur").value;
+      $("outLieu").textContent = $("lieu").value;
+      $("outPrestataire").textContent = $("prestataire").value;
+      $("outCorps").textContent = $("corps").value;
+      $("outFait").textContent = "Fait à " + $("lieuFait").value + ", le " + dateLongue($("dateNote").value) + ".";
+      $("outEtabliFonction").textContent = $("etabliFonction").value;
+      $("outEtabliNom").textContent = $("etabliNom").value;
+      $("outVisaFonction").textContent = $("visaFonction").value;
+      $("outVisaNom").textContent = $("visaNom").value;
+    }
+
+    let vehicules = [];
+    $("vehiculePick").addEventListener("change", () => {
+      const v = vehicules.find((item) => String(item.id || item.immatriculation) === $("vehiculePick").value);
+      if (!v) return;
+      const nom = [v.marque, v.modele].filter(Boolean).join(" ").trim();
+      $("vehicule").value = nom;
+      $("immat").value = v.immatriculation || "";
+      $("affectation").value = v.affectation || "";
+      if (v.kilometrage) $("km").value = v.kilometrage;
+      const cible = v.affectation ? "service " + v.affectation : "service concerné";
+      $("objet").value = "Mise en indisponibilité du " + (nom || "véhicule") + " immatriculé " + (v.immatriculation || "") + " affecté au " + cible;
+      $("destinataires").value = "Chef du " + cible + " · Responsable du parc automobile";
+      render();
+      chargerPlanning(v);
+    });
+
+    function creds() {
+      return {
+        baseUrl: $("apiBase").value.trim(),
+        username: $("apiUser").value.trim(),
+        password: $("apiPass").value
+      };
+    }
+
+    async function chargerPlanning(v) {
+      const status = $("planStatus");
+      status.className = "status";
+      status.textContent = "Lecture du planning entretien…";
+      try {
+        const res = await fetch("/api/planning", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(Object.assign(creds(), {
+            vehiculeId: v.id,
+            immatriculation: v.immatriculation
+          }))
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || "Planning indisponible");
+        if (data.kilometrage != null) $("km").value = data.kilometrage;
+        if (data.kilometrageApres != null) $("kmApres").value = data.kilometrageApres;
+        render();
+        status.className = "status ok";
+        status.textContent = "Planning Minexx : prochain entretien à " + $("prochain").value + " km.";
+      } catch (err) {
+        status.className = "status err";
+        status.textContent = err.message;
+      }
+    }
+
+    $("syncBtn").addEventListener("click", async () => {
+      const status = $("planStatus");
+      const v = vehicules.find((item) => String(item.id || item.immatriculation) === $("vehiculePick").value);
+      const actuel = parseInt($("km").value, 10);
+      const apres = parseInt($("kmApres").value, 10);
+      if (!v || !v.id) {
+        status.className = "status err";
+        status.textContent = "Choisissez un véhicule chargé depuis Minexx.";
+        return;
+      }
+      if (!Number.isFinite(actuel) || !Number.isFinite(apres)) {
+        status.className = "status err";
+        status.textContent = "Indiquez le kilométrage actuel et le kilométrage après entretien.";
+        return;
+      }
+      if (apres <= actuel) {
+        status.className = "status err";
+        status.textContent = "Minexx exige un kilométrage après entretien supérieur au kilométrage actuel.";
+        return;
+      }
+      status.className = "status";
+      status.textContent = "Mise à jour du planning…";
+      $("syncBtn").disabled = true;
+      try {
+        const res = await fetch("/api/planning/actualiser", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(Object.assign(creds(), {
+            vehiculeId: v.id,
+            kilometrage: actuel,
+            kilometrageApres: apres,
+            garage: $("prestataire").value || $("lieu").value,
+            motif: $("objet").value,
+            date: $("dateNote").value
+          }))
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || "Mise à jour refusée");
+        status.className = "status ok";
+        status.textContent = "Planning mis à jour. Prochain entretien à " + (apres + INTERVALLE) + " km.";
+      } catch (err) {
+        status.className = "status err";
+        status.textContent = err.message;
+      } finally {
+        $("syncBtn").disabled = false;
+      }
+    });
+
+    $("loadBtn").addEventListener("click", async () => {
+      const status = $("apiStatus");
+      status.className = "status";
+      status.textContent = "Connexion au charroi…";
+      $("loadBtn").disabled = true;
+      try {
+        const res = await fetch("/api/vehicules", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            baseUrl: $("apiBase").value.trim(),
+            username: $("apiUser").value.trim(),
+            password: $("apiPass").value
+          })
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || "Connexion impossible");
+        vehicules = data.vehicules || [];
+        const select = $("vehiculePick");
+        select.innerHTML = '<option value="">Saisie manuelle</option>';
+        vehicules.forEach((v) => {
+          const opt = document.createElement("option");
+          opt.value = v.id || v.immatriculation;
+          const nom = [v.marque, v.modele].filter(Boolean).join(" ");
+          opt.textContent = (v.immatriculation || "Sans immat.") + (nom ? " — " + nom : "");
+          select.appendChild(opt);
+        });
+        status.className = "status ok";
+        status.textContent = vehicules.length + " véhicule(s) chargé(s).";
+        localStorage.setItem("charroiBase", $("apiBase").value.trim());
+        localStorage.setItem("charroiUser", $("apiUser").value.trim());
+      } catch (err) {
+        status.className = "status err";
+        status.textContent = err.message;
+      } finally {
+        $("loadBtn").disabled = false;
+      }
+    });
+
+    $("printBtn").addEventListener("click", () => window.print());
+    fields.forEach((id) => $(id).addEventListener("input", render));
+
+    const savedBase = localStorage.getItem("charroiBase");
+    const savedUser = localStorage.getItem("charroiUser");
+    if (savedBase && savedBase.indexOf("minexx-production") === -1) $("apiBase").value = savedBase;
+    if (savedUser) $("apiUser").value = savedUser;
+    const today = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    $("dateNote").value = today.getFullYear() + "-" + pad(today.getMonth() + 1) + "-" + pad(today.getDate());
+    render();
+  </script>
+</body>
+</html>
