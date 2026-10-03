@@ -185,47 +185,90 @@ def planning_km(payload):
     }
 
 
+def strip_scripts(html):
+    html = re.sub(r"(?is)<script\b[^>]*>.*?</script>", " ", html)
+    html = re.sub(r"(?is)<style\b[^>]*>.*?</style>", " ", html)
+    return html
+
+
+def collect_form(html):
+    fields = {}
+    for tag in re.findall(r"(?is)<input\b[^>]*>", html):
+        name_match = re.search(r'(?i)\bname="([^"]+)"', tag)
+        if not name_match:
+            continue
+        if re.search(r'(?i)\btype="(?:submit|button|file|image)"', tag):
+            continue
+        if re.search(r'(?i)\btype="(?:checkbox|radio)"', tag) and not re.search(r'(?i)\bchecked\b', tag):
+            continue
+        value_match = re.search(r'(?i)\bvalue="([^"]*)"', tag)
+        fields[name_match.group(1)] = value_match.group(1) if value_match else ""
+    for name, body in re.findall(r'(?is)<textarea\b[^>]*\bname="([^"]+)"[^>]*>(.*?)</textarea>', html):
+        fields[name] = clean_cell(body)
+    for name, body in re.findall(r'(?is)<select\b[^>]*\bname="([^"]+)"[^>]*>(.*?)</select>', html):
+        selected = re.search(r'(?is)<option\b[^>]*\bselected\b[^>]*\bvalue="([^"]*)"', body)
+        if not selected:
+            selected = re.search(r'(?is)<option\b[^>]*\bvalue="([^"]*)"[^>]*\bselected\b', body)
+        if not selected:
+            selected = re.search(r'(?is)<option\b[^>]*\bvalue="([^"]*)"', body)
+        fields[name] = selected.group(1) if selected else ""
+    return fields
+
+
+def page_errors(html):
+    clean = strip_scripts(html)
+    found = []
+    pattern = (
+        r'(?is)<(?:ul|div|p|li)\b[^>]*class="[^"]*'
+        r'(?:errorlist|alert-danger|alert-error|invalid-feedback)'
+        r'[^"]*"[^>]*>(.*?)</(?:ul|div|p|li)>'
+    )
+    for chunk in re.findall(pattern, clean):
+        text = clean_cell(chunk)
+        if text and text not in found:
+            found.append(text)
+    return found
+
+
 def update_planning(payload):
     session = connect(payload.get("baseUrl"), payload.get("username"), payload.get("password"))
     base = session["base"]
     opener = session["opener"]
     _, form_html, _ = fetch(opener, base + "/entretien/ajouter/")
-    token = csrf_token(form_html)
-    if not token:
+    fields = collect_form(form_html)
+    if not fields.get("csrfmiddlewaretoken"):
         raise MinexxError("Formulaire d'entretien Minexx introuvable. Vérifiez que ce compte peut enregistrer un entretien.")
-    jour = payload.get("date") or date.today().isoformat()
+    actuel = int(payload.get("kilometrage") or 0)
+    apres = int(payload.get("kilometrageApres") or 0)
+    if apres <= actuel:
+        raise MinexxError("Le kilométrage après entretien doit être supérieur au kilométrage actuel.")
+    fields.update(
+        {
+            "vehicule": str(payload.get("vehiculeId") or ""),
+            "type_entretien": fields.get("type_entretien") or "ordinaire",
+            "garage": str(payload.get("garage") or fields.get("garage") or "GARAGE"),
+            "date_entretien": payload.get("date") or date.today().isoformat(),
+            "statut": "termine",
+            "motif": str(payload.get("motif") or "Entretien périodique"),
+            "cout": fields.get("cout") or "0",
+            "kilometrage": str(actuel),
+            "kilometrage_apres": str(apres),
+            "commentaires": "Mis à jour depuis la note d'immobilisation. Prochain entretien à +5000 km.",
+        }
+    )
     final_url, html, _ = fetch(
         opener,
         base + "/entretien/ajouter/",
-        data={
-            "csrfmiddlewaretoken": token,
-            "vehicule": str(payload.get("vehiculeId") or ""),
-            "type_entretien": "ordinaire",
-            "garage": str(payload.get("garage") or ""),
-            "date_entretien": jour,
-            "statut": "termine",
-            "motif": str(payload.get("motif") or ""),
-            "cout": "0",
-            "kilometrage": str(payload.get("kilometrage") or ""),
-            "kilometrage_apres": str(payload.get("kilometrageApres") or ""),
-            "commentaires": "Mis à jour depuis la note d'immobilisation. Prochain entretien à +5000 km.",
-            "pieces-TOTAL_FORMS": "0",
-            "pieces-INITIAL_FORMS": "0",
-            "pieces-MIN_NUM_FORMS": "0",
-            "pieces-MAX_NUM_FORMS": "1000",
-        },
+        data=fields,
         referer=base + "/entretien/ajouter/",
         timeout=30,
     )
-    low = re.search(r"ne peut pas être inférieur[^<]{0,180}", html)
-    if low:
-        raise MinexxError(low.group(0))
-    after = re.search(r"Le kilométrage après[^<]{0,120}", html)
-    if after:
-        raise MinexxError(after.group(0))
-    if "/entretien/detail/" not in final_url and re.search(r"alert-danger|errorlist|invalid-feedback", html):
-        raise MinexxError("Minexx n'a pas enregistré l'entretien. Ouvrez le planning et vérifiez les champs obligatoires.")
-    return {"ok": True, "url": final_url}
+    if "/entretien/detail/" in final_url or "/entretien/liste/" in final_url:
+        return {"ok": True, "url": final_url}
+    errors = page_errors(html)
+    if errors:
+        raise MinexxError(" ".join(errors)[:400])
+    raise MinexxError("Minexx n'a pas enregistré l'entretien. Vérifiez le véhicule, le garage et le coût.")
 
 
 class App(BaseHTTPRequestHandler):
